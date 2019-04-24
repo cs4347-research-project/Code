@@ -15,7 +15,7 @@ test_dir = '/Users/andrewgonzalez/Desktop/fruits-360/Test'
 
 num_classes = 95
 batch_size = 35
-epochs = 2
+epochs = 32
 
 
 def load_dataset(path):
@@ -84,7 +84,12 @@ x_train = x_train.astype('float32') / 255
 x_valid = x_valid.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
 
+import matplotlib.pyplot as plt
 
+fig = plt.figure(figsize=(30, 5))
+for i in range(10):
+    ax = fig.add_subplot(2, 5, i + 1, xticks=[], yticks=[])
+    ax.imshow(np.squeeze(x_train[i]))
 # Initialize the model
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D
@@ -93,7 +98,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from keras.callbacks import ModelCheckpoint
 from keras import backend as K
 
-# Add filters to the model 
+# Add filters to the model
 model = Sequential()
 model.add(Conv2D(filters=16, kernel_size=2, input_shape=(100, 100, 3), padding='same'))
 model.add(Activation('relu'))
@@ -129,7 +134,7 @@ history = model.fit(x_train, y_train,
 score = model.evaluate(x_test, y_test, verbose=0)
 print('\n', 'Test accuracy:', score[1])
 
-# Plot the accuracy and loss to help illustrate
+#Plot the accuracy and loss to help illustrate
 import matplotlib.pyplot as plt
 accuracy = history.history['acc']
 val_accuracy = history.history['val_acc']
@@ -139,5 +144,10 @@ epochs = range(len(accuracy))
 plt.plot(epochs, accuracy, 'bo', label='Training accuracy')
 plt.plot(epochs, val_accuracy, 'b', label='Validation accuracy')
 plt.title('Training and validation accuracy')
+plt.legend()
+plt.figure()
+plt.plot(epochs, loss, 'bo', label='Training loss')
+plt.plot(epochs, val_loss, 'b', label='Validation loss')
+plt.title('Training and validation loss')
 plt.legend()
 plt.show()
