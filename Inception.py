@@ -1,6 +1,7 @@
 from __future__ import print_function
 from sklearn.datasets import load_files
 import numpy as np
+from keras.utils import np_utils
 
 def load_dataset(path):
     data = load_files(path)
@@ -8,6 +9,15 @@ def load_dataset(path):
     targets = np.array(data['target'])
     target_labels = np.array(data['target_names'])
     return files, targets, target_labels
+
+from keras.preprocessing.image import array_to_img, img_to_array, load_img
+def convert_image_to_array(files):
+    images_as_array = []
+    for file in files:
+        # Convert to Numpy Array
+        images_as_array.append(img_to_array(load_img(file)))
+    return images_as_array
+
 
 
 train_dir = '/Users/andrewgonzalez/Desktop/fruits-360/Training'
@@ -24,8 +34,8 @@ from keras.datasets import cifar10
 X_train, y_train, target_labels = load_dataset(train_dir)
 X_test, y_test, _ = load_dataset(test_dir)
 print('Loading complete!')
-print('Training set size : ', x_train.shape[0])  # 48905
-print('Testing set size: ', x_test.shape[0])
+print('Training set size : ', X_train.shape[0])  # 48905
+print('Testing set size: ', X_test.shape[0])
 no_of_classes = len(np.unique(y_train))
 
 
@@ -45,7 +55,7 @@ x_valid = np.array(convert_image_to_array(x_valid))
 X_test = np.array(convert_image_to_array(X_test))
 print('Training set shape : ', X_train.shape)
 print('Validation set shape : ', x_valid.shape)
-print('Test set shape : ', x_test.shape)
+print('Test set shape : ', X_test.shape)
 
 X_train = X_train.astype('float32')
 X_test = X_test.astype('float32')
@@ -81,14 +91,14 @@ output = keras.layers.concatenate([tower_1, tower_2, tower_3], axis = 3)
 
 from keras.layers import Flatten, Dense
 output = Flatten()(output)
-out    = Dense(10, activation='softmax')(output)
+out    = Dense(95, activation='softmax')(output)
 
 from keras.models import Model
 model = Model(inputs = input_img, outputs = out)
 # print model.summary()
 
 from keras.optimizers import SGD
-epochs = 25
+epochs = 1
 lrate = 0.01
 decay = lrate/epochs
 sgd = SGD(lr=lrate, momentum=0.9, decay=decay, nesterov=False)
