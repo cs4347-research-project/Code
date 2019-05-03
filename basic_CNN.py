@@ -10,10 +10,10 @@ from __future__ import print_function
 from sklearn.datasets import load_files
 import numpy as np
 
-train_dir = '/Users/andrewgonzalez/Desktop/fruits-360/Training'
-test_dir = '/Users/andrewgonzalez/Desktop/fruits-360/Test'
+train_dir = '../input/fruits-360_dataset/fruits-360/Training'
+test_dir = '../input/fruits-360_dataset/fruits-360/Test'
 
-num_classes = 95
+num_classes = 101
 batch_size = 35
 epochs = 32
 
@@ -85,11 +85,6 @@ x_valid = x_valid.astype('float32') / 255
 x_test = x_test.astype('float32') / 255
 
 import matplotlib.pyplot as plt
-
-fig = plt.figure(figsize=(30, 5))
-for i in range(10):
-    ax = fig.add_subplot(2, 5, i + 1, xticks=[], yticks=[])
-    ax.imshow(np.squeeze(x_train[i]))
 # Initialize the model
 from keras.models import Sequential
 from keras.layers import Conv2D, MaxPooling2D
