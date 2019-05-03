@@ -20,10 +20,10 @@ def convert_image_to_array(files):
 
 
 
-train_dir = '/Users/andrewgonzalez/Desktop/fruits-360/Training'
-test_dir = '/Users/andrewgonzalez/Desktop/fruits-360/Test'
+train_dir = '../input/fruits-360_dataset/fruits-360/Training'
+test_dir = '../input/fruits-360_dataset/fruits-360/Test'
 
-num_classes = 95
+num_classes = 101
 batch_size = 35
 epochs = 32
 
@@ -51,23 +51,27 @@ print('Test X: ', X_test.shape)
 print('Test y: ', y_test.shape)
 
 X_train = np.array(convert_image_to_array(X_train))
+
 x_valid = np.array(convert_image_to_array(x_valid))
+
 X_test = np.array(convert_image_to_array(X_test))
+
 print('Training set shape : ', X_train.shape)
 print('Validation set shape : ', x_valid.shape)
 print('Test set shape : ', X_test.shape)
 
-X_train = X_train.astype('float32')
-X_test = X_test.astype('float32')
-X_train = X_train / 255.0
-X_test = X_test / 255.0
-x_valid = x_valid.astype('float32') / 255
 
+
+X_train = X_train.astype('float32') / 255
+
+X_test = X_test.astype('float32') / 255
+print('Before valid arithmetic ')
+x_valid = x_valid.astype('float32') / 255
+print('Before after arithmetic ')
 
 
 from keras.utils import np_utils
 
-print('Do I get here?')
 from keras.layers import Input
 input_img = Input(shape = (100, 100, 3))
 
@@ -91,14 +95,13 @@ output = keras.layers.concatenate([tower_1, tower_2, tower_3], axis = 3)
 
 from keras.layers import Flatten, Dense
 output = Flatten()(output)
-out    = Dense(95, activation='softmax')(output)
+out    = Dense(101, activation='softmax')(output)
 
 from keras.models import Model
 model = Model(inputs = input_img, outputs = out)
 # print model.summary()
 
 from keras.optimizers import SGD
-epochs = 1
 lrate = 0.01
 decay = lrate/epochs
 sgd = SGD(lr=lrate, momentum=0.9, decay=decay, nesterov=False)
