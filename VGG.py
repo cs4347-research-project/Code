@@ -34,11 +34,10 @@ checkpoint_dir = os.path.dirname(checkpoint_path)
 cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, 
                                                  save_weights_only=True,
                                                  verbose=1)
-
 callbacks = [cp_callback]
 IMAGE_SIZE = [64, 64]  
 
-# loading the weights of VGG16 without the top layer. These weights are trained on Imagenet dataset.
+# loading the weights of VGG16 without the top layer. 
 vgg = VGG16(input_shape = IMAGE_SIZE + [3], weights = 'imagenet', include_top = False)  # input_shape = (64,64,3) as required by VGG
 
 # this will exclude the initial layers from training phase as there are already been trained.
@@ -46,13 +45,12 @@ for layer in vgg.layers:
     layer.trainable = False
 
 x = Flatten()(vgg.output)
-x = Dense(num_classes, activation = 'softmax')(x)  # adding the output layer with softmax function as this is a multi label classification problem.
+x = Dense(num_classes, activation = 'softmax')(x)  # adding the output layer.
 
 model = Model(inputs = vgg.input, outputs = x)
 model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
 
 # Image Augmentation
-
 from keras.preprocessing.image import ImageDataGenerator
 from keras.applications.vgg16 import preprocess_input
 
