@@ -1,167 +1,62 @@
-"""
-Resnet-50 implementation for fruit-360 dataset.
-Work in progress.
-"""
-
-
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
 import os
-from os import listdir, makedirs
-from os.path import join, exists, expanduser
+from urllib.request import urlopen,urlretrieve
+from PIL import Image
+from tqdm import tqdm_notebook
+from sklearn.utils import shuffle
+import cv2
+from resnet_utils import *  # helper file, loads files from my local machine
 
+from keras.models import load_model
+from sklearn.datasets import load_files
+from keras.utils import np_utils
+from glob import glob
 from keras import applications
 from keras.preprocessing.image import ImageDataGenerator
 from keras import optimizers
-from keras.models import Sequential, Model
-from keras.layers import Dense, GlobalAveragePooling2D
-from keras.layers import Activation, Dropout, Flatten, Dense
-from keras import backend as K
-import tensorflow as tf
-# Any results you write to the current directory are saved as output.
+from keras.models import Sequential,Model,load_model
+from keras.layers import Dense, Dropout, Flatten, Conv2D, MaxPool2D,GlobalAveragePooling2D
+from keras.callbacks import TensorBoard,ReduceLROnPlateau,ModelCheckpoint
 
-# Pulls pre-trained models from kaggle !?
+X_train_orig, Y_train_orig, X_test_orig, Y_test_orig, classes = load_dataset()
 
-#!cp ../input/keras-pretrained-models/*notop* ~/.keras/models/
-#!cp ../input/keras-pretrained-models/imagenet_class_index.json ~/.keras/models/
-#!cp ../input/keras-pretrained-models/resnet50* ~/.keras/models/
-#print("Available Pretrained Models:\n")
-#!ls ~/.keras/models
+# Normalize image vectors
+X_train = X_train_orig/255.
+X_test = X_test_orig/255.
 
+# Convert training and test labels to one hot matrices
+Y_train = convert_to_one_hot(Y_train_orig, 6).T
+Y_test = convert_to_one_hot(Y_test_orig, 6).T
 
-# dimensions of our images.
-# We set the img_width and img_height according to the pretrained models we are
-# going to use. The input shape for ResNet-50 is 224 by 224 by 3 with values from 0 to 1.0
-img_width, img_height = 224, 224
+print ("number of training examples = " + str(X_train.shape[0]))
+print ("number of test examples = " + str(X_test.shape[0]))
+print ("X_train shape: " + str(X_train.shape))
+print ("Y_train shape: " + str(Y_train.shape))
+print ("X_test shape: " + str(X_test.shape))
+print ("Y_test shape: " + str(Y_test.shape))
 
-train_data_dir = './fruits-360/Training/'
-validation_data_dir = './fruits-360/Test/'
-nb_train_samples = 31688
-nb_validation_samples = 10657
-batch_size = 16
+img_height,img_width = 64,64
+num_classes = 101
 
-train_datagen = ImageDataGenerator(
-    rescale=1. / 255,
-    shear_range=0.2,
-    zoom_range=0.2,
-    horizontal_flip=True)
+base_model = applications.resnet50.ResNet50(weights= None, include_top=False, input_shape= (img_height,img_width,3))
 
-# RGB 255
-test_datagen = ImageDataGenerator(rescale=1. / 255)
-
-train_generator = train_datagen.flow_from_directory(
-    train_data_dir,
-    target_size=(img_height, img_width),
-    batch_size=batch_size,
-    class_mode='categorical')
-
-validation_generator = test_datagen.flow_from_directory(
-    validation_data_dir,
-    target_size=(img_height, img_width),
-    batch_size=batch_size,
-    class_mode='categorical')
-
-import pandas as pd
-from plotly.offline import init_notebook_mode, iplot
-import plotly.graph_objs as go
-init_notebook_mode(connected=True)
-
-training_data = pd.DataFrame(train_generator.classes, columns=['classes'])
-testing_data = pd.DataFrame(validation_generator.classes, columns=['classes'])
-
-
-def create_stack_bar_data(col, df):
-    aggregated = df[col].value_counts().sort_index()
-    x_values = aggregated.index.tolist()
-    y_values = aggregated.values.tolist()
-    return x_values, y_values
-
-
-x1, y1 = create_stack_bar_data('classes', training_data)
-#x1 = list(train_generator.class_indices.keys())
-# TODO: is class_names_list in the right order?
-class_names_list = list(train_generator.class_indices.keys())
-
-trace1 = go.Bar(x=class_names_list, y=y1, opacity=0.75, name="Class Count")
-layout = dict(height=400, width=1200, title='Class Distribution in Training Data', legend=dict(orientation="h"),
-                yaxis = dict(title = 'Class Count'))
-fig = go.Figure(data=[trace1], layout=layout);
-iplot(fig);
-
-x1, y1 = create_stack_bar_data('classes', testing_data)
-train_class_names = list(validation_generator.class_indices.keys())
-
-trace1 = go.Bar(x=train_class_names, y=y1, opacity=0.75, name="Class Count")
-layout = dict(height=400, width=1100, title='Class Distribution in Validation Data', legend=dict(orientation="h"),
-                yaxis = dict(title = 'Class Count'))
-fig = go.Figure(data=[trace1], layout=layout);
-iplot(fig);
-
-#import inception with pre-trained weights. do not include fully #connected layers
-inception_base = applications.ResNet50(weights='imagenet', include_top=False)
-
-# add a global spatial average pooling layer
-x = inception_base.output
+x = base_model.output
 x = GlobalAveragePooling2D()(x)
-# add a fully-connected layer
-x = Dense(512, activation='relu')(x)
-# and a fully connected output/classification layer
-predictions = Dense(len(class_names_list), activation='softmax')(x)
-# create the full network so we can train on it
-inception_transfer = Model(inputs=inception_base.input, outputs=predictions)
+x = Dropout(0.7)(x)
+predictions = Dense(num_classes, activation= 'softmax')(x)
+model = Model(inputs = base_model.input, outputs = predictions)
 
-#import inception with pre-trained weights. do not include fully #connected layers
-inception_base_vanilla = applications.ResNet50(weights=None, include_top=False)
+from keras.optimizers import SGD, Adam
+# sgd = SGD(lr=lrate, momentum=0.9, decay=decay, nesterov=False)
+adam = Adam(lr=0.0001)
+model.compile(optimizer= adam, loss='categorical_crossentropy', metrics=['accuracy'])
 
-# add a global spatial average pooling layer
-x = inception_base_vanilla.output
-x = GlobalAveragePooling2D()(x)
-# add a fully-connected layer
-x = Dense(512, activation='relu')(x)
-# and a fully connected output/classification layer
-predictions = Dense(len(class_names_list), activation='softmax')(x)
-# create the full network so we can train on it
-inception_transfer_vanilla = Model(inputs=inception_base_vanilla.input, outputs=predictions)
+model.fit(X_train, Y_train, epochs = 100, batch_size = 64)
 
-inception_transfer.compile(loss='categorical_crossentropy',
-              optimizer=optimizers.SGD(lr=1e-4, momentum=0.9),
-              metrics=['accuracy'])
+preds = model.evaluate(X_test, Y_test)
+print ("Loss = " + str(preds[0]))
+print ("Test Accuracy = " + str(preds[1]))
 
-inception_transfer_vanilla.compile(loss='categorical_crossentropy',
-              optimizer=optimizers.SGD(lr=1e-4, momentum=0.9),
-              metrics=['accuracy'])
-
-from tensorflow.python.client import device_lib
-print(device_lib.list_local_devices())
-
-import tensorflow as tf
-with tf.device("/device:GPU:0"):
-    history_pretrained = inception_transfer.fit_generator(
-    train_generator,
-    epochs=5, shuffle = True, verbose = 1, validation_data = validation_generator)
-
-with tf.device("/device:GPU:0"):
-    history_vanilla = inception_transfer_vanilla.fit_generator(
-    train_generator,
-    epochs=5, shuffle = True, verbose = 1, validation_data = validation_generator)
-
-import matplotlib.pyplot as plt
-# summarize history for accuracy
-plt.plot(history_pretrained.history['val_acc'])
-plt.plot(history_vanilla.history['val_acc'])
-plt.title('model accuracy')
-plt.ylabel('accuracy')
-plt.xlabel('epoch')
-plt.legend(['Pretrained', 'Vanilla'], loc='upper left')
-plt.show()
-# summarize history for loss
-plt.plot(history_pretrained.history['val_loss'])
-plt.plot(history_vanilla.history['val_loss'])
-plt.title('model loss')
-plt.ylabel('loss')
-plt.xlabel('epoch')
-plt.legend(['Pretrained', 'Vanilla'], loc='upper left')
-plt.show()
-
-from IPython.lib import kernel
-print(dir(kernel))
-print(kernel.get_connection_info())
-print(kernel.get_connection_file())
+model.summary()
